@@ -17,7 +17,7 @@ An interactive financial calculator for pricing Webulls warrants (BULLZ) with $1
 
 ## How to Use
 
-1. Visit the [calculator website](https://yourusername.github.io/webulls-warrant-calculator/)
+1. Visit the [calculator website](https://fujipy.github.io/Warrant-Pricer/)
 2. Adjust parameters using sliders or input fields:
    - Stock price (BULL)
    - Volatility
