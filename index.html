@@ -51,54 +51,54 @@
 </head>
 <body>
     <h1>Webulls Warrant Calculator</h1>
-    
+
     <div class="parameters">
         <h2>Parameters</h2>
-        
+
         <div class="input-row">
             <label for="stockPrice">Stock Price:</label>
             <input type="number" id="stockPrice" value="40" min="0" step="0.1">
-            <input type="range" id="stockPriceRange" min="0" max=100" value="40" step="0.1">
+            <input type="range" id="stockPriceRange" min="0" max="100" value="40" step="0.1">
         </div>
-        
+
         <div class="input-row">
             <label for="strikePrice">Strike Price:</label>
             <input type="number" id="strikePrice" value="10" readonly>
         </div>
-        
+
         <div class="input-row">
             <label for="volatility">Volatility (%):</label>
             <input type="number" id="volatility" value="100" min="5" max="500" step="1">
             <input type="range" id="volatilityRange" min="5" max="500" value="100" step="1">
         </div>
-        
+
         <div class="input-row">
             <label for="riskFreeRate">Risk-Free Rate (%):</label>
             <input type="number" id="riskFreeRate" value="3.5" min="0" max="10" step="0.1">
             <input type="range" id="riskFreeRateRange" min="0" max="10" value="3.5" step="0.1">
         </div>
-        
+
         <div class="input-row">
             <label for="timeTilExercisable">Time to Exercisable (Days):</label>
             <input type="number" id="timeTilExercisable" value="25" min="0" max="30" step="0.1">
-            <input type="range" id="timeTilExercisable" min="0" max="30" value="25" step="0.1">
+            <input type="range" id="timeTilExercisableRange" min="0" max="30" value="25" step="0.1">
         </div>
-        
+
         <div class="input-row">
             <label for="dilutionFactor">Dilution Factor:</label>
             <input type="number" id="dilutionFactor" value="0.85" min="0.1" max="1" step="0.01">
             <input type="range" id="dilutionFactorRange" min="0.1" max="1" value="0.85" step="0.01">
         </div>
-        
+
         <div class="input-row">
             <label for="illiquidityDiscount">Illiquidity Discount (%):</label>
             <input type="number" id="illiquidityDiscount" value="20" min="0" max="50" step="1">
             <input type="range" id="illiquidityDiscountRange" min="0" max="50" value="20" step="1">
         </div>
-        
+
         <button id="calculateBtn">Calculate</button>
     </div>
-    
+
     <div class="results">
         <h2>Results</h2>
         <div class="results-grid">
@@ -112,141 +112,10 @@
             <div>Break-Even Stock Price: <span id="breakEvenPrice">$0.00</span></div>
         </div>
     </div>
-    
+
     <div class="chart-container">
         <canvas id="valueChart"></canvas>
     </div>
-
-    <script>
-        // Connect range inputs to number inputs
-        document.querySelectorAll('input[type="range"]').forEach(range => {
-            const numberInput = document.getElementById(range.id.replace('Range', ''));
-            
-            range.addEventListener('input', () => {
-                numberInput.value = range.value;
-            });
-            
-            numberInput.addEventListener('input', () => {
-                range.value = numberInput.value;
-            });
-        });
-        
-        // Black-Scholes calculation function (simplified)
-        function calculateWarrantPrice() {
-            const S = parseFloat(document.getElementById('stockPrice').value);
-            const K = parseFloat(document.getElementById('strikePrice').value);
-            const v = parseFloat(document.getElementById('volatility').value) / 100;
-            const r = parseFloat(document.getElementById('riskFreeRate').value) / 100;
-            const T = parseFloat(document.getElementById('timeToExpiration').value);
-            const dilution = parseFloat(document.getElementById('dilutionFactor').value);
-            
-            // Simple Black-Scholes calculation (simplified)
-            const d1 = (Math.log(S/K) + (r + v*v/2)*T) / (v*Math.sqrt(T));
-            const d2 = d1 - v*Math.sqrt(T);
-            
-            // Normal CDF approximation
-            function normalCDF(x) {
-                const t = 1/(1 + 0.2316419*Math.abs(x));
-                const d = 0.3989423*Math.exp(-x*x/2);
-                const p = d*t*(0.3193815 + t*(-0.3565638 + t*(1.781478 + t*(-1.821256 + t*1.330274))));
-                return x > 0 ? 1-p : p;
-            }
-            
-            const bsValue = S * normalCDF(d1) - K * Math.exp(-r*T) * normalCDF(d2);
-            const dilutedValue = bsValue * dilution;
-            const finalValue = dilutedValue;
-            const intrinsicValue = Math.max(0, S - K);
-            const timeValue = finalValue - intrinsicValue;
-            const probability = normalCDF(d2) * 100;
-            const leverageRatio = (S/finalValue) * (finalValue/S);
-            const breakEvenPrice = K + finalValue;
-            
-            // Update results
-            document.getElementById('bsValue').textContent = '$' + bsValue.toFixed(2);
-            document.getElementById('dilutedValue').textContent = '$' + dilutedValue.toFixed(2);
-            document.getElementById('finalValue').textContent = '$' + finalValue.toFixed(2);
-            document.getElementById('intrinsicValue').textContent = '$' + intrinsicValue.toFixed(2);
-            document.getElementById('timeValue').textContent = '$' + timeValue.toFixed(2);
-            document.getElementById('probability').textContent = probability.toFixed(1) + '%';
-            document.getElementById('leverageRatio').textContent = leverageRatio.toFixed(2) + 'x';
-            document.getElementById('breakEvenPrice').textContent = '$' + breakEvenPrice.toFixed(2);
-            
-            // Update chart
-            updateChart(S, K, finalValue);
-        }
-        
-        // Simple chart function
-        function updateChart(stockPrice, strikePrice, warrantPrice) {
-            const ctx = document.getElementById('valueChart').getContext('2d');
-            
-            // Generate data points
-            const stockPrices = [];
-            const warrantValues = [];
-            const intrinsicValues = [];
-            
-            const minPrice = Math.max(strikePrice * 0.5, 0);
-            const maxPrice = strikePrice * 2;
-            
-            for (let price = minPrice; price <= maxPrice; price += (maxPrice - minPrice) / 20) {
-                stockPrices.push(price);
-                
-                // Calculate warrant value at this stock price (simplified)
-                const ratio = price / stockPrice;
-                const newWarrantValue = warrantPrice * ratio;
-                warrantValues.push(newWarrantValue);
-                
-                // Intrinsic value
-                intrinsicValues.push(Math.max(0, price - strikePrice));
-            }
-            
-            // Create chart
-            if (window.valueChart) {
-                window.valueChart.destroy();
-            }
-            
-            window.valueChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: stockPrices.map(p => p.toFixed(2)),
-                    datasets: [
-                        {
-                            label: 'Warrant Value',
-                            data: warrantValues,
-                            borderColor: 'blue',
-                            fill: false
-                        },
-                        {
-                            label: 'Intrinsic Value',
-                            data: intrinsicValues,
-                            borderColor: 'green',
-                            fill: false
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Stock Price'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Value'
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
-        // Initialize
-        document.getElementById('calculateBtn').addEventListener('click', calculateWarrantPrice);
-        calculateWarrantPrice(); // Calculate on page load
-    </script>
 </body>
 </html>
+
