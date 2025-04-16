@@ -1,266 +1,114 @@
-// Main application JavaScript for Webulls Warrant Calculator
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize UI components
-    initializeTabs();
-    initializeInputs();
-    initializeTooltips();
-    initializeModals();
-    initializePresets();
-    initializeExportTools();
-    
-    // Run initial calculation
-    calculateWarrant();
-    
-    // Set up event listeners for calculating and updating
-    document.getElementById('calculateBtn').addEventListener('click', calculateWarrant);
-    document.getElementById('resetBtn').addEventListener('click', resetParameters);
-    document.getElementById('updateTimeAnalysis').addEventListener('click', updateTimeAnalysis);
-    document.getElementById('updateSensitivity').addEventListener('click', updateSensitivityAnalysis);
-    document.getElementById('runSimulation').addEventListener('click', runMonteCarloSimulation);
-    document.getElementById('addScenario').addEventListener('click', addNewScenario);
-    
-    // Initialize charts
-    initializeValueChart();
-    
-    // Initial time analysis
-    updateTimeAnalysis();
-    
-    // Initial sensitivity analysis
-    updateSensitivityAnalysis();
+// script.js — JavaScript for Warrant Calculator
+
+document.querySelectorAll('input[type="range"]').forEach(range => {
+    const numberInput = document.getElementById(range.id.replace('Range', ''));
+    range.addEventListener('input', () => numberInput.value = range.value);
+    numberInput.addEventListener('input', () => range.value = numberInput.value);
 });
 
-// ----------------
-// UI Initialization
-// ----------------
+document.getElementById('themeToggle').addEventListener('click', () => {
+    document.body.classList.toggle('dark');
+});
 
-function initializeTabs() {
-    const tabs = document.querySelectorAll('.tabs .tab');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            const tabName = this.getAttribute('data-tab');
-            
-            // Remove active class from all tabs and tab content
-            document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
-            
-            // Add active class to clicked tab and its content
-            this.classList.add('active');
-            document.getElementById(tabName).classList.add('active');
-        });
-    });
+document.getElementById('saveResults').addEventListener('click', () => {
+    const results = [
+        ['Black-Scholes Value', document.getElementById('bsValue').textContent],
+        ['Dilution-Adjusted Value', document.getElementById('dilutedValue').textContent],
+        ['Final Warrant Value', document.getElementById('finalValue').textContent],
+        ['Intrinsic Value', document.getElementById('intrinsicValue').textContent],
+        ['Time Value', document.getElementById('timeValue').textContent],
+        ['Probability Stock > Strike', document.getElementById('probability').textContent],
+        ['Leverage Ratio', document.getElementById('leverageRatio').textContent],
+        ['Break-Even Stock Price', document.getElementById('breakEvenPrice').textContent],
+    ];
+
+    let csv = 'Metric,Value\n';
+    results.forEach(row => csv += `${row[0]},${row[1]}\n`);
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.setAttribute('href', URL.createObjectURL(blob));
+    link.setAttribute('download', 'warrant_results.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+});
+
+function normalCDF(x) {
+    const t = 1 / (1 + 0.2316419 * Math.abs(x));
+    const d = 0.3989423 * Math.exp(-x * x / 2);
+    const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    return x > 0 ? 1 - p : p;
 }
 
-function initializeInputs() {
-    // Link range sliders to number inputs
-    const rangeSliders = document.querySelectorAll('.range-slider');
-    rangeSliders.forEach(slider => {
-        const targetId = slider.id.replace('Range', '');
-        const numberInput = document.getElementById(targetId);
-        
-        // Update number input when slider changes
-        slider.addEventListener('input', function() {
-            numberInput.value = this.value;
-            // If this is in the main calculator, recalculate
-            if (document.getElementById('calculator').classList.contains('active')) {
-                calculateWarrant();
-            }
-        });
-        
-        // Update slider when number input changes
-        numberInput.addEventListener('input', function() {
-            slider.value = this.value;
-            // If this is in the main calculator, recalculate
-            if (document.getElementById('calculator').classList.contains('active')) {
-                calculateWarrant();
-            }
-        });
-    });
-    
-    // Handle increment/decrement buttons
-    const incrementButtons = document.querySelectorAll('.increment');
-    incrementButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const targetId = this.getAttribute('data-target');
-            const step = parseFloat(this.getAttribute('data-step'));
-            const inputField = document.getElementById(targetId);
-            inputField.value = (parseFloat(inputField.value) + step).toFixed(2);
-            inputField.dispatchEvent(new Event('input'));
-        });
-    });
-    
-    const decrementButtons = document.querySelectorAll('.decrement');
-    decrementButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const targetId = this.getAttribute('data-target');
-            const step = parseFloat(this.getAttribute('data-step'));
-            const inputField = document.getElementById(targetId);
-            inputField.value = (parseFloat(inputField.value) - step).toFixed(2);
-            inputField.dispatchEvent(new Event('input'));
-        });
-    });
+function calculateWarrantPrice() {
+    const S = parseFloat(document.getElementById('stockPrice').value);
+    const K = parseFloat(document.getElementById('strikePrice').value);
+    const v = parseFloat(document.getElementById('volatility').value) / 100;
+    const r = parseFloat(document.getElementById('riskFreeRate').value) / 100;
+    const T = parseFloat(document.getElementById('timeTilExercisable').value) / 365;
+    const dilution = parseFloat(document.getElementById('dilutionFactor').value);
+
+    const d1 = (Math.log(S / K) + (r + v * v / 2) * T) / (v * Math.sqrt(T));
+    const d2 = d1 - v * Math.sqrt(T);
+
+    const bsValue = S * normalCDF(d1) - K * Math.exp(-r * T) * normalCDF(d2);
+    const dilutedValue = bsValue * dilution;
+    const finalValue = dilutedValue;
+    const intrinsicValue = Math.max(0, S - K);
+    const timeValue = finalValue - intrinsicValue;
+    const probability = normalCDF(d2) * 100;
+    const leverageRatio = S / finalValue;
+    const breakEvenPrice = K + finalValue;
+
+    document.getElementById('bsValue').textContent = `$${bsValue.toFixed(2)}`;
+    document.getElementById('dilutedValue').textContent = `$${dilutedValue.toFixed(2)}`;
+    document.getElementById('finalValue').textContent = `$${finalValue.toFixed(2)}`;
+    document.getElementById('intrinsicValue').textContent = `$${intrinsicValue.toFixed(2)}`;
+    document.getElementById('timeValue').textContent = `$${timeValue.toFixed(2)}`;
+    document.getElementById('probability').textContent = `${probability.toFixed(1)}%`;
+    document.getElementById('leverageRatio').textContent = `${leverageRatio.toFixed(2)}x`;
+    document.getElementById('breakEvenPrice').textContent = `$${breakEvenPrice.toFixed(2)}`;
+
+    updateChart(S, K, finalValue);
 }
 
-function initializeTooltips() {
-    // Simple tooltip initialization
-    const tooltips = document.querySelectorAll('.tooltip');
-    tooltips.forEach(tooltip => {
-        tooltip.addEventListener('mouseenter', function() {
-            // Create tooltip element
-            const tooltipText = document.createElement('div');
-            tooltipText.classList.add('tooltip-text');
-            tooltipText.textContent = this.getAttribute('title');
-            tooltipText.style.position = 'absolute';
-            tooltipText.style.backgroundColor = '#333';
-            tooltipText.style.color = '#fff';
-            tooltipText.style.padding = '5px 10px';
-            tooltipText.style.borderRadius = '4px';
-            tooltipText.style.fontSize = '14px';
-            tooltipText.style.zIndex = '1000';
-            tooltipText.style.maxWidth = '300px';
-            
-            // Position the tooltip
-            const rect = this.getBoundingClientRect();
-            tooltipText.style.top = (rect.bottom + 5) + 'px';
-            tooltipText.style.left = rect.left + 'px';
-            
-            // Add to DOM
-            document.body.appendChild(tooltipText);
-            
-            // Store reference to remove later
-            this.tooltipElement = tooltipText;
-        });
-        
-        tooltip.addEventListener('mouseleave', function() {
-            if (this.tooltipElement) {
-                document.body.removeChild(this.tooltipElement);
-                this.tooltipElement = null;
-            }
-        });
-    });
-}
-
-function initializeModals() {
-    // Save/Load modal
-    const saveBtn = document.getElementById('saveBtn');
-    const loadBtn = document.getElementById('loadBtn');
-    const saveLoadModal = document.getElementById('saveLoadModal');
-    const modalCloseBtn = saveLoadModal.querySelector('.close');
-    const cancelBtns = saveLoadModal.querySelectorAll('.cancel-btn');
-    
-    saveBtn.addEventListener('click', function() {
-        document.getElementById('modalTitle').textContent = 'Save Parameters';
-        document.getElementById('saveForm').style.display = 'block';
-        document.getElementById('loadForm').style.display = 'none';
-        saveLoadModal.style.display = 'block';
-    });
-    
-    loadBtn.addEventListener('click', function() {
-        document.getElementById('modalTitle').textContent = 'Load Parameters';
-        document.getElementById('saveForm').style.display = 'none';
-        document.getElementById('loadForm').style.display = 'block';
-        loadSavedParameters();
-        saveLoadModal.style.display = 'block';
-    });
-    
-    modalCloseBtn.addEventListener('click', function() {
-        saveLoadModal.style.display = 'none';
-    });
-    
-    cancelBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            saveLoadModal.style.display = 'none';
-        });
-    });
-    
-    // Confirm save button
-    document.getElementById('confirmSave').addEventListener('click', saveParameters);
-    document.getElementById('confirmLoad').addEventListener('click', loadSelectedParameters);
-    document.getElementById('deleteSelected').addEventListener('click', deleteSelectedParameters);
-    
-    // Help modal
-    const helpBtn = document.getElementById('helpBtn');
-    const helpModal = document.getElementById('helpModal');
-    const helpModalCloseBtn = helpModal.querySelector('.close');
-    
-    helpBtn.addEventListener('click', function() {
-        helpModal.style.display = 'block';
-    });
-    
-    helpModalCloseBtn.addEventListener('click', function() {
-        helpModal.style.display = 'none';
-    });
-    
-    // Help modal tabs
-    const helpTabs = helpModal.querySelectorAll('.tabs .tab');
-    helpTabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            const tabName = this.getAttribute('data-tab');
-            
-            // Remove active class from all tabs and tab content
-            helpModal.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
-            helpModal.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
-            
-            // Add active class to clicked tab and its content
-            this.classList.add('active');
-            helpModal.querySelector(`#${tabName}`).classList.add('active');
-        });
-    });
-    
-    // Close modals when clicking outside
-    window.addEventListener('click', function(event) {
-        if (event.target === saveLoadModal) {
-            saveLoadModal.style.display = 'none';
-        }
-        if (event.target === helpModal) {
-            helpModal.style.display = 'none';
-        }
-    });
-}
-
-function initializePresets() {
-    const presetBtns = document.querySelectorAll('.preset-btn');
-    presetBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const presetType = this.getAttribute('data-preset');
-            loadPreset(presetType);
-        });
-    });
-}
-
-function initializeExportTools() {
-    document.getElementById('exportCSV').addEventListener('click', exportToCSV);
-    document.getElementById('exportPDF').addEventListener('click', exportToPDF);
-    document.getElementById('exportImage').addEventListener('click', exportChartImage);
-}
-
-// ----------------
-// Chart Initialization
-// ----------------
-
-function initializeValueChart() {
+function updateChart(stockPrice, strikePrice, warrantPrice) {
     const ctx = document.getElementById('valueChart').getContext('2d');
+    const stockPrices = [];
+    const warrantValues = [];
+    const intrinsicValues = [];
+    const minPrice = Math.max(strikePrice * 0.5, 0);
+    const maxPrice = strikePrice * 2;
+
+    for (let price = minPrice; price <= maxPrice; price += (maxPrice - minPrice) / 20) {
+        stockPrices.push(price);
+        const ratio = price / stockPrice;
+        const newWarrantValue = warrantPrice * ratio;
+        warrantValues.push(newWarrantValue);
+        intrinsicValues.push(Math.max(0, price - strikePrice));
+    }
+
+    if (window.valueChart) {
+        window.valueChart.destroy();
+    }
+
     window.valueChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: [], // Will be filled with stock prices
+            labels: stockPrices.map(p => p.toFixed(2)),
             datasets: [
                 {
                     label: 'Warrant Value',
-                    borderColor: '#2563eb',
-                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    fill: true,
-                    data: []
+                    data: warrantValues,
+                    borderColor: 'blue',
+                    fill: false
                 },
                 {
                     label: 'Intrinsic Value',
-                    borderColor: '#10b981',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    fill: false,
-                    data: []
+                    data: intrinsicValues,
+                    borderColor: 'green',
+                    fill: false
                 }
             ]
         },
@@ -271,170 +119,20 @@ function initializeValueChart() {
                 x: {
                     title: {
                         display: true,
-                        text: 'Stock Price ($)'
+                        text: 'Stock Price'
                     }
                 },
                 y: {
                     title: {
                         display: true,
-                        text: 'Warrant Value ($)'
-                    },
-                    beginAtZero: true
-                }
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Warrant Value vs Stock Price'
-                },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false
+                        text: 'Value'
+                    }
                 }
             }
         }
     });
 }
 
-// ----------------
-// Calculation Functions
-// ----------------
+document.getElementById('calculateBtn').addEventListener('click', calculateWarrantPrice);
+calculateWarrantPrice();
 
-function calculateWarrant() {
-    // Get parameters from inputs
-    const params = getParameters();
-    
-    // Calculate Black-Scholes value
-    const bsValue = blackScholesCall(
-        params.stockPrice,
-        params.strikePrice,
-        params.riskFreeRate / 100,
-        params.volatility / 100,
-        params.timeToExpiration
-    );
-    
-    // Dilution adjustment
-    const dilutedValue = bsValue * params.dilutionFactor;
-    
-    // Illiquidity adjustment if still in minimum hold period
-    let finalValue = dilutedValue;
-    if (params.daysSinceListing < params.minimumHoldDays) {
-        const illiquidityDiscount = params.illiquidityDiscount / 100;
-        finalValue = dilutedValue * (1 - illiquidityDiscount);
-    }
-    
-    // Calculate intrinsic value
-    const intrinsicValue = Math.max(0, params.stockPrice - params.strikePrice);
-    
-    // Calculate time value
-    const timeValue = finalValue - intrinsicValue;
-    
-    // Calculate probability stock > strike
-    const d2 = calculateD2(
-        params.stockPrice,
-        params.strikePrice,
-        params.riskFreeRate / 100,
-        params.volatility / 100,
-        params.timeToExpiration
-    );
-    const probability = cumulativeNormal(d2) * 100;
-    
-    // Calculate leverage ratio (approximate)
-    const leverageRatio = calculateLeverageRatio(params, finalValue);
-    
-    // Calculate break-even price
-    const breakEvenPrice = params.strikePrice + finalValue;
-    
-    // Update results
-    document.getElementById('bsValue').textContent = '$' + bsValue.toFixed(2);
-    document.getElementById('dilutedValue').textContent = '$' + dilutedValue.toFixed(2);
-    document.getElementById('finalValue').textContent = '$' + finalValue.toFixed(2);
-    document.getElementById('intrinsicValue').textContent = '$' + intrinsicValue.toFixed(2);
-    document.getElementById('timeValue').textContent = '$' + timeValue.toFixed(2);
-    document.getElementById('probability').textContent = probability.toFixed(1) + '%';
-    document.getElementById('leverageRatio').textContent = leverageRatio.toFixed(2) + 'x';
-    document.getElementById('breakEvenPrice').textContent = '$' + breakEvenPrice.toFixed(2);
-    
-    // Update chart
-    updateValueChart(params, finalValue);
-    
-    return finalValue;
-}
-
-function updateValueChart(params, currentValue) {
-    // Generate range of stock prices
-    const minPrice = Math.max(params.strikePrice * 0.5, 1);
-    const maxPrice = params.strikePrice * 2;
-    const step = (maxPrice - minPrice) / 50;
-    
-    const stockPrices = [];
-    const warrantValues = [];
-    const intrinsicValues = [];
-    
-    for (let price = minPrice; price <= maxPrice; price += step) {
-        stockPrices.push(price.toFixed(2));
-        
-        // Calculate warrant value at this stock price
-        const bsValue = blackScholesCall(
-            price,
-            params.strikePrice,
-            params.riskFreeRate / 100,
-            params.volatility / 100,
-            params.timeToExpiration
-        );
-        
-        const dilutedValue = bsValue * params.dilutionFactor;
-        
-        // Apply illiquidity discount if applicable
-        let finalValue = dilutedValue;
-        if (params.daysSinceListing < params.minimumHoldDays) {
-            const illiquidityDiscount = params.illiquidityDiscount / 100;
-            finalValue = dilutedValue * (1 - illiquidityDiscount);
-        }
-        
-        warrantValues.push(finalValue);
-        
-        // Calculate intrinsic value
-        const intrinsicValue = Math.max(0, price - params.strikePrice);
-        intrinsicValues.push(intrinsicValue);
-    }
-    
-    // Update chart data
-    window.valueChart.data.labels = stockPrices;
-    window.valueChart.data.datasets[0].data = warrantValues;
-    window.valueChart.data.datasets[1].data = intrinsicValues;
-    
-    // Add a point for current stock price
-    const currentIndex = stockPrices.findIndex(p => parseFloat(p) >= params.stockPrice);
-    if (currentIndex !== -1) {
-        window.valueChart.data.datasets.push({
-            label: 'Current',
-            backgroundColor: '#ef4444',
-            borderColor: '#ef4444',
-            pointRadius: 6,
-            pointHoverRadius: 8,
-            pointStyle: 'circle',
-            data: Array(stockPrices.length).fill(null)
-        });
-        
-        window.valueChart.data.datasets[2].data[currentIndex] = currentValue;
-    }
-    
-    window.valueChart.update();
-}
-
-function updateTimeAnalysis() {
-    const params = getParameters();
-    const stockGrowthRate = parseFloat(document.getElementById('stockGrowthRate').value) / 100;
-    const volatilityDecay = parseFloat(document.getElementById('volatilityDecay').value) / 100;
-    
-    // Calculate warrant values over time
-    const days = [0, 30, 90, 180, 365, 730, 1825];
-    const timeLabels = days.map(d => d === 0 ? 'Now' : d + ' Days');
-    
-    const stockPrices = [];
-    const warrantPrices = [];
-    const intrinsicValues = [];
-    const timeValues = [];
-    const intrinsicPercentages = [];
-    const leverageRatios = [];
