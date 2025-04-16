@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webull Warrant Calculator (BULLZ) </title>
+    <title>Webull Warrant Calculator (BULLZ)</title>
     <style>
         body {
             font-family: sans-serif;
@@ -80,8 +80,8 @@
 
         <div class="input-row">
             <label for="timeTilExercisable">Time to Exercisable (Days):</label>
-            <input type="number" id="timeTilExercisable" value="25" min="0" max="30" step="0.1">
-            <input type="range" id="timeTilExercisableRange" min="0" max="30" value="25" step="0.1">
+            <input type="number" id="timeTilExercisable" value="25" min="0" max="365" step="0.1">
+            <input type="range" id="timeTilExercisableRange" min="0" max="365" value="25" step="0.1">
         </div>
 
         <div class="input-row">
@@ -116,5 +116,116 @@
     <div class="chart-container">
         <canvas id="valueChart"></canvas>
     </div>
+
+    <script>
+        // Link range inputs with number inputs
+        document.querySelectorAll('input[type="range"]').forEach(range => {
+            const numberInput = document.getElementById(range.id.replace('Range', ''));
+            range.addEventListener('input', () => numberInput.value = range.value);
+            numberInput.addEventListener('input', () => range.value = numberInput.value);
+        });
+
+        function normalCDF(x) {
+            const t = 1 / (1 + 0.2316419 * Math.abs(x));
+            const d = 0.3989423 * Math.exp(-x * x / 2);
+            const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+            return x > 0 ? 1 - p : p;
+        }
+
+        function calculateWarrantPrice() {
+            const S = parseFloat(document.getElementById('stockPrice').value);
+            const K = parseFloat(document.getElementById('strikePrice').value);
+            const v = parseFloat(document.getElementById('volatility').value) / 100;
+            const r = parseFloat(document.getElementById('riskFreeRate').value) / 100;
+            const T = parseFloat(document.getElementById('timeTilExercisable').value) / 365;
+            const dilution = parseFloat(document.getElementById('dilutionFactor').value);
+            const illiquidityDiscount = parseFloat(document.getElementById('illiquidityDiscount').value) / 100;
+
+            const d1 = (Math.log(S / K) + (r + v * v / 2) * T) / (v * Math.sqrt(T));
+            const d2 = d1 - v * Math.sqrt(T);
+
+            const bsValue = S * normalCDF(d1) - K * Math.exp(-r * T) * normalCDF(d2);
+            const dilutedValue = bsValue * dilution;
+            const discountedValue = dilutedValue * (1 - illiquidityDiscount);
+            const intrinsicValue = Math.max(0, S - K);
+            const timeValue = Math.max(0, discountedValue - intrinsicValue);
+            const probability = normalCDF(d2) * 100;
+            const leverageRatio = S / Math.max(1e-6, discountedValue);
+            const breakEvenPrice = K + discountedValue;
+
+            document.getElementById('bsValue').textContent = '$' + bsValue.toFixed(2);
+            document.getElementById('dilutedValue').textContent = '$' + dilutedValue.toFixed(2);
+            document.getElementById('finalValue').textContent = '$' + discountedValue.toFixed(2);
+            document.getElementById('intrinsicValue').textContent = '$' + intrinsicValue.toFixed(2);
+            document.getElementById('timeValue').textContent = '$' + timeValue.toFixed(2);
+            document.getElementById('probability').textContent = probability.toFixed(1) + '%';
+            document.getElementById('leverageRatio').textContent = leverageRatio.toFixed(2) + 'x';
+            document.getElementById('breakEvenPrice').textContent = '$' + breakEvenPrice.toFixed(2);
+
+            updateChart(S, K, discountedValue);
+        }
+
+        function updateChart(currentStockPrice, strikePrice, warrantValue) {
+            const ctx = document.getElementById('valueChart').getContext('2d');
+            const stockPrices = [];
+            const warrantValues = [];
+            const intrinsicValues = [];
+
+            const minPrice = Math.max(strikePrice * 0.5, 0);
+            const maxPrice = strikePrice * 2;
+
+            for (let price = minPrice; price <= maxPrice; price += (maxPrice - minPrice) / 40) {
+                stockPrices.push(price);
+                warrantValues.push(warrantValue * (price / currentStockPrice));
+                intrinsicValues.push(Math.max(0, price - strikePrice));
+            }
+
+            if (window.valueChart) window.valueChart.destroy();
+
+            window.valueChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: stockPrices.map(p => p.toFixed(2)),
+                    datasets: [
+                        {
+                            label: 'Warrant Value',
+                            data: warrantValues,
+                            borderColor: 'blue',
+                            fill: false
+                        },
+                        {
+                            label: 'Intrinsic Value',
+                            data: intrinsicValues,
+                            borderColor: 'green',
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Stock Price'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Value'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        window.onload = function () {
+            document.getElementById('calculateBtn').addEventListener('click', calculateWarrantPrice);
+            calculateWarrantPrice();
+        };
+    </script>
 </body>
 </html>
