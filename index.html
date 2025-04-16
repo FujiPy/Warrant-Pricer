@@ -3,552 +3,250 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Interactive calculator for pricing Webulls BULLZ warrants with advanced features">
-    <meta name="keywords" content="warrant pricing, Webulls, BULLZ, SPAC, financial calculator, option pricing">
-    <title>Webulls Warrant Pricing Calculator</title>
-    
-    <!-- Favicon -->
-    <link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon">
-    
-    <!-- CSS -->
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Charts and external libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <title>Webulls Warrant Calculator</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .input-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .input-row label {
+            flex: 0 0 200px;
+        }
+        input[type="number"], input[type="range"] {
+            width: 120px;
+        }
+        .results {
+            margin-top: 20px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .chart-container {
+            margin-top: 20px;
+            height: 300px;
+            border: 1px solid #ddd;
+        }
+        button {
+            padding: 8px 16px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
 </head>
 <body>
-    <header>
-        <div class="logo">
-            <img src="img/logo.svg" alt="Webulls Warrant Calculator">
-            <h1>Webulls Warrant Calculator</h1>
-        </div>
-        <div class="toolbar">
-            <button id="saveBtn" title="Save Parameters"><i class="fas fa-save"></i> Save</button>
-            <button id="loadBtn" title="Load Parameters"><i class="fas fa-folder-open"></i> Load</button>
-            <button id="helpBtn" title="Help"><i class="fas fa-question-circle"></i> Help</button>
-        </div>
-    </header>
-
-    <div class="container">
-        <div class="side-panel">
-            <div class="presets">
-                <h3>Preset Scenarios</h3>
-                <button class="preset-btn" data-preset="bullish">Bullish</button>
-                <button class="preset-btn" data-preset="bearish">Bearish</button>
-                <button class="preset-btn" data-preset="base">Base Case</button>
-                <button class="preset-btn" data-preset="high-vol">High Volatility</button>
-                <button class="preset-btn" data-preset="low-vol">Low Volatility</button>
-            </div>
-            
-            <div class="export-tools">
-                <h3>Export Options</h3>
-                <button id="exportCSV"><i class="fas fa-file-csv"></i> Export CSV</button>
-                <button id="exportPDF"><i class="fas fa-file-pdf"></i> Export PDF</button>
-                <button id="exportImage"><i class="fas fa-file-image"></i> Export Chart</button>
-            </div>
+    <h1>Webulls Warrant Calculator</h1>
+    
+    <div class="parameters">
+        <h2>Parameters</h2>
+        
+        <div class="input-row">
+            <label for="stockPrice">Stock Price:</label>
+            <input type="number" id="stockPrice" value="11" min="0" step="0.1">
+            <input type="range" id="stockPriceRange" min="0" max="30" value="11" step="0.1">
         </div>
         
-        <div class="main-content">
-            <div class="tabs">
-                <div class="tab active" data-tab="calculator">Calculator</div>
-                <div class="tab" data-tab="timeAnalysis">Time Analysis</div>
-                <div class="tab" data-tab="sensitivity">Sensitivity</div>
-                <div class="tab" data-tab="monteCarlo">Monte Carlo</div>
-                <div class="tab" data-tab="comparison">Comparison</div>
-            </div>
-            
-            <div id="calculator" class="tab-content active">
-                <h2>Warrant Pricing Model <span class="tooltip" title="This calculator uses a modified Black-Scholes model with adjustments for dilution and illiquidity">ⓘ</span></h2>
-                
-                <div class="parameter-groups">
-                    <div class="parameter-group">
-                        <h3>Market Parameters</h3>
-                        <div class="input-row">
-                            <label for="stockPrice">Current Stock Price (BULL):</label>
-                            <div class="input-with-controls">
-                                <input type="number" id="stockPrice" value="11" min="0" step="0.1" data-default="11">
-                                <div class="increment-controls">
-                                    <button class="increment" data-target="stockPrice" data-step="0.1">+</button>
-                                    <button class="decrement" data-target="stockPrice" data-step="0.1">-</button>
-                                </div>
-                            </div>
-                            <span class="tooltip" title="The current trading price of BULL shares">ⓘ</span>
-                        </div>
-                        
-                        <div class="input-row">
-                            <label for="strikePrice">Strike Price:</label>
-                            <input type="number" id="strikePrice" value="10" readonly data-default="10">
-                            <span class="tooltip" title="The price at which warrants can be exchanged for shares">ⓘ</span>
-                        </div>
-                        
-                        <div class="input-row">
-                            <label for="volatility">Volatility (%):</label>
-                            <div class="input-with-range">
-                                <input type="number" id="volatility" value="45" min="5" max="150" step="1" data-default="45">
-                                <input type="range" min="5" max="150" value="45" class="range-slider" id="volatilityRange">
-                            </div>
-                            <span class="tooltip" title="Annualized standard deviation of stock price returns">ⓘ</span>
-                        </div>
-                        
-                        <div class="input-row">
-                            <label for="riskFreeRate">Risk-Free Rate (%):</label>
-                            <div class="input-with-range">
-                                <input type="number" id="riskFreeRate" value="3.5" min="0" max="10" step="0.1" data-default="3.5">
-                                <input type="range" min="0" max="10" value="3.5" step="0.1" class="range-slider" id="riskFreeRateRange">
-                            </div>
-                            <span class="tooltip" title="Annual yield on risk-free government securities">ⓘ</span>
-                        </div>
-                    </div>
-                    
-                    <div class="parameter-group">
-                        <h3>Warrant Parameters</h3>
-                        <div class="input-row">
-                            <label for="timeToExpiration">Time to Expiration (Years):</label>
-                            <div class="input-with-range">
-                                <input type="number" id="timeToExpiration" value="5" min="0.1" max="10" step="0.1" data-default="5">
-                                <input type="range" min="0.1" max="10" value="5" step="0.1" class="range-slider" id="timeToExpirationRange">
-                            </div>
-                            <span class="tooltip" title="Time remaining until the warrants expire">ⓘ</span>
-                        </div>
-                        
-                        <div class="input-row">
-                            <label for="dilutionFactor">Dilution Factor:</label>
-                            <div class="input-with-range">
-                                <input type="number" id="dilutionFactor" value="0.85" min="0.1" max="1" step="0.01" data-default="0.85">
-                                <input type="range" min="0.1" max="1" value="0.85" step="0.01" class="range-slider" id="dilutionFactorRange">
-                            </div>
-                            <span class="tooltip" title="Adjustment for dilution when warrants are exercised (1 = no dilution)">ⓘ</span>
-                        </div>
-                        
-                        <div class="input-row">
-                            <label for="daysSinceListing">Days Since Listing:</label>
-                            <div class="input-with-range">
-                                <input type="number" id="daysSinceListing" value="45" min="0" max="365" step="1" data-default="45">
-                                <input type="range" min="0" max="365" value="45" class="range-slider" id="daysSinceListingRange">
-                            </div>
-                            <span class="tooltip" title="Number of days since the SPAC merger was completed">ⓘ</span>
-                        </div>
-                        
-                        <div class="input-row">
-                            <label for="minimumHoldDays">Minimum Hold Period (Days):</label>
-                            <input type="number" id="minimumHoldDays" value="30" min="0" max="90" step="1" data-default="30">
-                            <span class="tooltip" title="Required holding period after listing before warrants can be exercised">ⓘ</span>
-                        </div>
-                        
-                        <div class="input-row">
-                            <label for="illiquidityDiscount">Illiquidity Discount During Hold (%):</label>
-                            <div class="input-with-range">
-                                <input type="number" id="illiquidityDiscount" value="20" min="0" max="50" step="1" data-default="20">
-                                <input type="range" min="0" max="50" value="20" class="range-slider" id="illiquidityDiscountRange">
-                            </div>
-                            <span class="tooltip" title="Discount applied during the minimum hold period due to exercise restrictions">ⓘ</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="calculate-row">
-                    <button id="calculateBtn" class="primary-btn">Calculate</button>
-                    <button id="resetBtn">Reset to Defaults</button>
-                </div>
-                
-                <div class="results">
-                    <h2>Warrant Valuation Results</h2>
-                    <div class="results-grid">
-                        <div class="result-item">
-                            <div class="result-label">Black-Scholes Value:</div>
-                            <div class="result-value" id="bsValue">$2.81</div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">Dilution-Adjusted Value:</div>
-                            <div class="result-value" id="dilutedValue">$2.39</div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">Final Warrant Value:</div>
-                            <div class="result-value emphasis" id="finalValue">$2.39</div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">Intrinsic Value:</div>
-                            <div class="result-value" id="intrinsicValue">$1.00</div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">Time Value:</div>
-                            <div class="result-value" id="timeValue">$1.39</div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">Probability Stock > Strike:</div>
-                            <div class="result-value" id="probability">68.2%</div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">Leverage Ratio:</div>
-                            <div class="result-value" id="leverageRatio">2.17x</div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">Break-Even Stock Price:</div>
-                            <div class="result-value" id="breakEvenPrice">$12.39</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="chart-container">
-                    <canvas id="valueChart"></canvas>
-                </div>
-            </div>
-            
-            <div id="timeAnalysis" class="tab-content">
-                <h2>Warrant Price Over Time</h2>
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="stockGrowthRate">Stock Growth Rate (%/year):</label>
-                        <input type="number" id="stockGrowthRate" value="5" min="-50" max="100" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label for="volatilityDecay">Volatility Decay (%/year):</label>
-                        <input type="number" id="volatilityDecay" value="5" min="0" max="20" step="1">
-                    </div>
-                    <button id="updateTimeAnalysis">Update</button>
-                </div>
-                
-                <div class="chart-container">
-                    <canvas id="timeChart"></canvas>
-                </div>
-                
-                <div class="table-container">
-                    <table id="timeTable">
-                        <thead>
-                            <tr>
-                                <th>Days</th>
-                                <th>Stock Price</th>
-                                <th>Warrant Price</th>
-                                <th>Intrinsic Value</th>
-                                <th>Time Value</th>
-                                <th>% of Intrinsic</th>
-                                <th>Leverage</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Filled by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <div id="sensitivity" class="tab-content">
-                <h2>Sensitivity Analysis</h2>
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="sensitivityVariable">Analysis Variable:</label>
-                        <select id="sensitivityVariable">
-                            <option value="stockPrice">Stock Price</option>
-                            <option value="volatility">Volatility</option>
-                            <option value="riskFreeRate">Risk-Free Rate</option>
-                            <option value="timeToExpiration">Time to Expiration</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <label for="sensitivityPeriods">Time Periods:</label>
-                        <select id="sensitivityPeriods">
-                            <option value="0,30,60,90,180,365">Standard</option>
-                            <option value="0,90,180,365,730,1825">Long Term</option>
-                        </select>
-                    </div>
-                    <button id="updateSensitivity">Update</button>
-                </div>
-                
-                <div class="chart-container">
-                    <canvas id="sensitivityChart"></canvas>
-                </div>
-                
-                <div class="table-container">
-                    <div class="sensitivity-table">
-                        <table id="sensitivityTable">
-                            <thead>
-                                <!-- Filled by JavaScript -->
-                            </thead>
-                            <tbody>
-                                <!-- Filled by JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            
-            <div id="monteCarlo" class="tab-content">
-                <h2>Monte Carlo Simulation</h2>
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="numSimulations">Number of Simulations:</label>
-                        <input type="number" id="numSimulations" value="1000" min="100" max="10000" step="100">
-                    </div>
-                    <div class="control-group">
-                        <label for="simulationDays">Days to Simulate:</label>
-                        <input type="number" id="simulationDays" value="365" min="30" max="1825" step="30">
-                    </div>
-                    <div class="control-group">
-                        <label for="confidenceInterval">Confidence Interval (%):</label>
-                        <input type="number" id="confidenceInterval" value="95" min="50" max="99" step="1">
-                    </div>
-                    <button id="runSimulation" class="primary-btn">Run Simulation</button>
-                </div>
-                
-                <div class="simulation-results">
-                    <div class="result-summary">
-                        <div class="result-item">
-                            <div class="result-label">Expected Warrant Value:</div>
-                            <div class="result-value" id="expectedValue">$0.00</div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">95% Range (Low):</div>
-                            <div class="result-value" id="confidenceLow">$0.00</div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">95% Range (High):</div>
-                            <div class="result-value" id="confidenceHigh">$0.00</div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">Probability > Current Price:</div>
-                            <div class="result-value" id="probAboveCurrent">0%</div>
-                        </div>
-                    </div>
-                    
-                    <div class="dual-charts">
-                        <div class="chart-container">
-                            <canvas id="pathsChart"></canvas>
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="distributionChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div id="comparison" class="tab-content">
-                <h2>Comparison Analysis</h2>
-                <div class="scenario-manager">
-                    <h3>Scenarios</h3>
-                    <div class="scenario-list" id="scenarioList">
-                        <div class="scenario-item active" data-scenario="base">
-                            <span class="scenario-name">Base Case</span>
-                            <div class="scenario-actions">
-                                <button class="edit-scenario" title="Edit"><i class="fas fa-edit"></i></button>
-                                <button class="delete-scenario" title="Delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                    <button id="addScenario" class="secondary-btn"><i class="fas fa-plus"></i> Add New Scenario</button>
-                </div>
-                
-                <div class="comparison-charts">
-                    <div class="chart-container">
-                        <canvas id="comparisonChart"></canvas>
-                    </div>
-                </div>
-                
-                <div class="comparison-table-container">
-                    <table id="comparisonTable">
-                        <thead>
-                            <tr>
-                                <th>Parameter</th>
-                                <!-- Scenario headers added by JavaScript -->
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Filled by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+        <div class="input-row">
+            <label for="strikePrice">Strike Price:</label>
+            <input type="number" id="strikePrice" value="10" readonly>
+        </div>
+        
+        <div class="input-row">
+            <label for="volatility">Volatility (%):</label>
+            <input type="number" id="volatility" value="45" min="5" max="150" step="1">
+            <input type="range" id="volatilityRange" min="5" max="150" value="45" step="1">
+        </div>
+        
+        <div class="input-row">
+            <label for="riskFreeRate">Risk-Free Rate (%):</label>
+            <input type="number" id="riskFreeRate" value="3.5" min="0" max="10" step="0.1">
+            <input type="range" id="riskFreeRateRange" min="0" max="10" value="3.5" step="0.1">
+        </div>
+        
+        <div class="input-row">
+            <label for="timeToExpiration">Time to Expiration (Years):</label>
+            <input type="number" id="timeToExpiration" value="5" min="0.1" max="10" step="0.1">
+            <input type="range" id="timeToExpirationRange" min="0.1" max="10" value="5" step="0.1">
+        </div>
+        
+        <div class="input-row">
+            <label for="dilutionFactor">Dilution Factor:</label>
+            <input type="number" id="dilutionFactor" value="0.85" min="0.1" max="1" step="0.01">
+            <input type="range" id="dilutionFactorRange" min="0.1" max="1" value="0.85" step="0.01">
+        </div>
+        
+        <div class="input-row">
+            <label for="illiquidityDiscount">Illiquidity Discount (%):</label>
+            <input type="number" id="illiquidityDiscount" value="20" min="0" max="50" step="1">
+            <input type="range" id="illiquidityDiscountRange" min="0" max="50" value="20" step="1">
+        </div>
+        
+        <button id="calculateBtn">Calculate</button>
+    </div>
+    
+    <div class="results">
+        <h2>Results</h2>
+        <div class="results-grid">
+            <div>Black-Scholes Value: <span id="bsValue">$0.00</span></div>
+            <div>Dilution-Adjusted Value: <span id="dilutedValue">$0.00</span></div>
+            <div>Final Warrant Value: <span id="finalValue">$0.00</span></div>
+            <div>Intrinsic Value: <span id="intrinsicValue">$0.00</span></div>
+            <div>Time Value: <span id="timeValue">$0.00</span></div>
+            <div>Probability Stock > Strike: <span id="probability">0%</span></div>
+            <div>Leverage Ratio: <span id="leverageRatio">0x</span></div>
+            <div>Break-Even Stock Price: <span id="breakEvenPrice">$0.00</span></div>
         </div>
     </div>
     
-    <!-- Modal for saving/loading -->
-    <div id="saveLoadModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2 id="modalTitle">Save Parameters</h2>
-            
-            <div id="saveForm" class="modal-form">
-                <div class="form-group">
-                    <label for="saveName">Name:</label>
-                    <input type="text" id="saveName" placeholder="My Parameters">
-                </div>
-                <div class="form-group">
-                    <label for="saveDescription">Description (optional):</label>
-                    <textarea id="saveDescription" placeholder="Description of these parameters"></textarea>
-                </div>
-                <div class="form-actions">
-                    <button id="confirmSave" class="primary-btn">Save</button>
-                    <button class="cancel-btn">Cancel</button>
-                </div>
-            </div>
-            
-            <div id="loadForm" class="modal-form">
-                <div class="saved-list" id="savedParametersList">
-                    <!-- Filled by JavaScript -->
-                </div>
-                <div class="form-actions">
-                    <button id="confirmLoad" class="primary-btn">Load</button>
-                    <button class="cancel-btn">Cancel</button>
-                    <button id="deleteSelected" class="delete-btn"><i class="fas fa-trash"></i> Delete</button>
-                </div>
-            </div>
-        </div>
+    <div class="chart-container">
+        <canvas id="valueChart"></canvas>
     </div>
-    
-    <!-- Help modal -->
-    <div id="helpModal" class="modal">
-        <div class="modal-content wide">
-            <span class="close">&times;</span>
-            <h2>Help & Documentation</h2>
+
+    <script>
+        // Connect range inputs to number inputs
+        document.querySelectorAll('input[type="range"]').forEach(range => {
+            const numberInput = document.getElementById(range.id.replace('Range', ''));
             
-            <div class="tabs">
-                <div class="tab active" data-tab="helpBasics">Basics</div>
-                <div class="tab" data-tab="helpParameters">Parameters</div>
-                <div class="tab" data-tab="helpModel">The Model</div>
-                <div class="tab" data-tab="helpTutorial">Tutorial</div>
-            </div>
+            range.addEventListener('input', () => {
+                numberInput.value = range.value;
+            });
             
-            <div id="helpBasics" class="tab-content active">
-                <h3>About This Calculator</h3>
-                <p>This calculator is designed to price Webulls warrants (BULLZ) with a $10 exercise price and 30-day minimum hold period from launch. It uses a modified Black-Scholes option pricing model with adjustments for dilution and the illiquidity during the minimum hold period.</p>
-                
-                <h3>Getting Started</h3>
-                <ol>
-                    <li>Enter market parameters (stock price, volatility, etc.)</li>
-                    <li>Adjust warrant-specific parameters</li>
-                    <li>Click "Calculate" to see the results</li>
-                    <li>Explore different tabs for more detailed analysis</li>
-                </ol>
-                
-                <h3>Key Features</h3>
-                <ul>
-                    <li><strong>Real-time calculations</strong> - See how price changes with different parameters</li>
-                    <li><strong>Multiple analysis views</strong> - Basic calculation, time series, sensitivity analysis</li>
-                    <li><strong>Monte Carlo simulation</strong> - Probabilistic future value projection</li>
-                    <li><strong>Comparison tool</strong> - Compare different parameter sets</li>
-                    <li><strong>Save/load parameters</strong> - Store your scenarios for later</li>
-                    <li><strong>Export options</strong> - Export results as CSV, PDF, or images</li>
-                </ul>
-            </div>
+            numberInput.addEventListener('input', () => {
+                range.value = numberInput.value;
+            });
+        });
+        
+        // Black-Scholes calculation function (simplified)
+        function calculateWarrantPrice() {
+            const S = parseFloat(document.getElementById('stockPrice').value);
+            const K = parseFloat(document.getElementById('strikePrice').value);
+            const v = parseFloat(document.getElementById('volatility').value) / 100;
+            const r = parseFloat(document.getElementById('riskFreeRate').value) / 100;
+            const T = parseFloat(document.getElementById('timeToExpiration').value);
+            const dilution = parseFloat(document.getElementById('dilutionFactor').value);
             
-            <div id="helpParameters" class="tab-content">
-                <h3>Parameter Explanations</h3>
-                
-                <div class="parameter-help">
-                    <h4>Market Parameters</h4>
-                    <dl>
-                        <dt>Current Stock Price (BULL)</dt>
-                        <dd>The current trading price of the underlying Webulls stock (BULL).</dd>
-                        
-                        <dt>Strike Price</dt>
-                        <dd>The price at which warrant holders can purchase shares. Fixed at $10 for BULLZ warrants.</dd>
-                        
-                        <dt>Volatility (%)</dt>
-                        <dd>Annualized standard deviation of stock returns. Higher volatility increases warrant value due to greater upside potential.</dd>
-                        
-                        <dt>Risk-Free Rate (%)</dt>
-                        <dd>Annual yield on risk-free government securities. Used as discount rate in the pricing model.</dd>
-                    </dl>
-                </div>
-                
-                <div class="parameter-help">
-                    <h4>Warrant Parameters</h4>
-                    <dl>
-                        <dt>Time to Expiration (Years)</dt>
-                        <dd>Time remaining until the warrants expire. Longer expiration increases time value.</dd>
-                        
-                        <dt>Dilution Factor</dt>
-                        <dd>Adjustment factor accounting for dilution when warrants are exercised. A factor of 1 means no dilution, while lower values (e.g., 0.85) mean more dilution.</dd>
-                        
-                        <dt>Days Since Listing</dt>
-                        <dd>Number of days since the SPAC merger was completed and BULLZ warrants began trading.</dd>
-                        
-                        <dt>Minimum Hold Period (Days)</dt>
-                        <dd>Required holding period after listing before warrants can be exercised. For BULLZ, this is 30 days.</dd>
-                        
-                        <dt>Illiquidity Discount During Hold (%)</dt>
-                        <dd>Discount applied during the minimum hold period due to exercise restrictions.</dd>
-                    </dl>
-                </div>
-            </div>
+            // Simple Black-Scholes calculation (simplified)
+            const d1 = (Math.log(S/K) + (r + v*v/2)*T) / (v*Math.sqrt(T));
+            const d2 = d1 - v*Math.sqrt(T);
             
-            <div id="helpModel" class="tab-content">
-                <h3>The Black-Scholes Model</h3>
-                <p>This calculator uses a modified Black-Scholes option pricing model, which is the standard for valuing European-style options. For warrants, we make adjustments to account for dilution and illiquidity.</p>
-                
-                <h4>Basic Black-Scholes Formula</h4>
-                <pre>
-d₁ = (ln(S/K) + (r + σ²/2)T) / (σ√T)
-d₂ = d₁ - σ√T
-Call Value = S·N(d₁) - K·e^(-rT)·N(d₂)
-</pre>
-                
-                <p>Where:</p>
-                <ul>
-                    <li>S = Stock price</li>
-                    <li>K = Strike price ($10)</li>
-                    <li>r = Risk-free rate</li>
-                    <li>σ = Volatility</li>
-                    <li>T = Time to expiration</li>
-                    <li>N(x) = Cumulative normal distribution function</li>
-                </ul>
-                
-                <h4>Adjustments for Warrants</h4>
-                <ol>
-                    <li><strong>Dilution Adjustment</strong>: Warrant Value = Basic BS Value × Dilution Factor</li>
-                    <li><strong>Illiquidity Adjustment</strong>: Applied during minimum hold period</li>
-                </ol>
-                
-                <h4>Key Outputs</h4>
-                <ul>
-                    <li><strong>Intrinsic Value</strong>: Max(0, Stock Price - Strike Price)</li>
-                    <li><strong>Time Value</strong>: Warrant Price - Intrinsic Value</li>
-                    <li><strong>Leverage Ratio</strong>: % Change in Warrant Price / % Change in Stock Price</li>
-                    <li><strong>Break-Even Stock Price</strong>: Strike Price + Warrant Price</li>
-                </ul>
-            </div>
+            // Normal CDF approximation
+            function normalCDF(x) {
+                const t = 1/(1 + 0.2316419*Math.abs(x));
+                const d = 0.3989423*Math.exp(-x*x/2);
+                const p = d*t*(0.3193815 + t*(-0.3565638 + t*(1.781478 + t*(-1.821256 + t*1.330274))));
+                return x > 0 ? 1-p : p;
+            }
             
-            <div id="helpTutorial" class="tab-content">
-                <h3>Step-by-Step Tutorial</h3>
+            const bsValue = S * normalCDF(d1) - K * Math.exp(-r*T) * normalCDF(d2);
+            const dilutedValue = bsValue * dilution;
+            const finalValue = dilutedValue;
+            const intrinsicValue = Math.max(0, S - K);
+            const timeValue = finalValue - intrinsicValue;
+            const probability = normalCDF(d2) * 100;
+            const leverageRatio = (S/finalValue) * (finalValue/S);
+            const breakEvenPrice = K + finalValue;
+            
+            // Update results
+            document.getElementById('bsValue').textContent = '$' + bsValue.toFixed(2);
+            document.getElementById('dilutedValue').textContent = '$' + dilutedValue.toFixed(2);
+            document.getElementById('finalValue').textContent = '$' + finalValue.toFixed(2);
+            document.getElementById('intrinsicValue').textContent = '$' + intrinsicValue.toFixed(2);
+            document.getElementById('timeValue').textContent = '$' + timeValue.toFixed(2);
+            document.getElementById('probability').textContent = probability.toFixed(1) + '%';
+            document.getElementById('leverageRatio').textContent = leverageRatio.toFixed(2) + 'x';
+            document.getElementById('breakEvenPrice').textContent = '$' + breakEvenPrice.toFixed(2);
+            
+            // Update chart
+            updateChart(S, K, finalValue);
+        }
+        
+        // Simple chart function
+        function updateChart(stockPrice, strikePrice, warrantPrice) {
+            const ctx = document.getElementById('valueChart').getContext('2d');
+            
+            // Generate data points
+            const stockPrices = [];
+            const warrantValues = [];
+            const intrinsicValues = [];
+            
+            const minPrice = Math.max(strikePrice * 0.5, 0);
+            const maxPrice = strikePrice * 2;
+            
+            for (let price = minPrice; price <= maxPrice; price += (maxPrice - minPrice) / 20) {
+                stockPrices.push(price);
                 
-                <div class="tutorial-step">
-                    <h4>Step 1: Basic Calculation</h4>
-                    <p>Start by entering the current stock price and other market parameters. The calculator will show you the theoretical warrant price based on these inputs.</p>
-                    <img src="img/tutorial-basic.png" alt="Basic calculation screenshot">
-                </div>
+                // Calculate warrant value at this stock price (simplified)
+                const ratio = price / stockPrice;
+                const newWarrantValue = warrantPrice * ratio;
+                warrantValues.push(newWarrantValue);
                 
-                <div class="tutorial-step">
-                    <h4>Step 2: Exploring Time Analysis</h4>
-                    <p>Switch to the Time Analysis tab to see how the warrant value evolves over time. You can adjust the stock growth rate to model different scenarios.</p>
-                    <img src="img/tutorial-time.png" alt="Time analysis screenshot">
-                </div>
-                
-                <div class="tutorial-step">
-                    <h4>Step 3: Sensitivity Analysis</h4>
-                    <p>The Sensitivity tab lets you see how changes in key variables affect the warrant price. This helps identify which factors have the biggest impact.</p>
-                    <img src="img/tutorial-sensitivity.png" alt="Sensitivity analysis screenshot">
-                </div>
-                
-                <div class="tutorial-step">
-                    <h4>Step 4: Monte Carlo Simulation</h4>
-                    <p>For more advanced analysis, use the Monte Carlo tab to simulate thousands of possible price paths and see the probability distribution of future warrant values.</p>
-                    <img src="img/tutorial-montecarlo.png" alt="Monte Carlo screenshot">
-                </div>
-                
-                <div class="tutorial-step">
-                    <h4>Step 5: Comparing Scenarios</h4>
-                    <p>Use the Comparison tab to create and compare different scenarios side by side.</p>
-                    <img src="img/tutorial-comparison.png" alt="Comparison screenshot">
-                </div>
-                
-                <div class="tutorial-step">
-                    <h4>Step 6: Saving Your Work</h4>
-                    <p>Don't forget to save your parameters for future reference using the Save button in the top toolbar.</p>
-                    <img src="img/tutorial-save.png" alt="Save parameters screenshot">
-                </div>
-            </div>
-        </div>
-    </div>
-    
+                // Intrinsic value
+                intrinsicValues.push(Math.max(0, price - strikePrice));
+            }
+            
+            // Create chart
+            if (window.valueChart) {
+                window.valueChart.destroy();
+            }
+            
+            window.valueChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: stockPrices.map(p => p.toFixed(2)),
+                    datasets: [
+                        {
+                            label: 'Warrant Value',
+                            data: warrantValues,
+                            borderColor: 'blue',
+                            fill: false
+                        },
+                        {
+                            label: 'Intrinsic Value',
+                            data: intrinsicValues,
+                            borderColor: 'green',
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Stock Price'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Value'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Initialize
+        document.getElementById('calculateBtn').addEventListener('click', calculateWarrantPrice);
+        calculateWarrantPrice(); // Calculate on page load
+    </script>
+</body>
+</html>
